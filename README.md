@@ -16,19 +16,20 @@ npm install
 ```
 
 ### 3. Add your API credentials
-- Rename `.env.example` to `.env`
+- Rename `env.example` to `.env`
 - Open `.env` in any text editor and fill in your credentials:
 
 ```
 TWITTER_BEARER_TOKEN=your_token_here
 TWITTER_USER_ID=your_numeric_id_here
-LINKEDIN_ACCESS_TOKEN=your_token_here
-LINKEDIN_PERSON_URN=urn:li:person:your_id_here
+LINKEDIN_CLIENTID=your_client_id_here
+LINKEDIN_SECRET=your_client_secret_here
+LINKEDIN_PERSON_URN=urn:li:person:your_person_id_here
 ```
 
 **Finding your Twitter User ID:** Go to https://tweeterid.com and enter your username.
 
-**LinkedIn Access Token:** See LinkedIn OAuth setup below.
+**LinkedIn setup:** See LinkedIn setup below.
 
 ### 4. Run the app
 ```
@@ -39,40 +40,36 @@ Then open your browser and go to: **http://localhost:3000**
 
 ---
 
-## LinkedIn OAuth Setup
+## LinkedIn Setup (Client Credentials)
 
-LinkedIn requires a one-time OAuth flow to get your access token:
+This app uses LinkedIn's client credentials flow — no manual OAuth or token refresh needed.
 
-1. Go to https://linkedin.com/developers → your app → Auth tab
-2. Add `http://localhost:3000` as a redirect URL
-3. Open this URL in your browser (replace YOUR_CLIENT_ID):
-```
-https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=YOUR_CLIENT_ID&redirect_uri=http://localhost:3000&scope=r_liteprofile%20r_emailaddress%20w_member_social
-```
-4. Authorize the app — LinkedIn redirects you back with a `?code=` in the URL
-5. Copy that code and run this in Terminal (replace the placeholders):
-```
-curl -X POST https://www.linkedin.com/oauth/v2/accessToken \
-  -d "grant_type=authorization_code" \
-  -d "code=YOUR_CODE" \
-  -d "redirect_uri=http://localhost:3000" \
-  -d "client_id=YOUR_CLIENT_ID" \
-  -d "client_secret=YOUR_CLIENT_SECRET"
-```
-6. Copy the `access_token` from the response → paste into your `.env`
+1. Go to https://linkedin.com/developers and create an app (or use an existing one)
+2. In your app → **Auth** tab, copy the **Client ID** and **Client Secret** into `.env` as `LINKEDIN_CLIENTID` and `LINKEDIN_SECRET`
+3. Get your **Person URN** (e.g. `urn:li:person:ABC123`):
+   - Option A: Use the LinkedIn API to fetch your profile and read the `id` from the response
+   - Option B: Your URN is often your numeric LinkedIn member ID — you can find it via third‑party tools or your profile URL
+4. Add `LINKEDIN_PERSON_URN=urn:li:person:YOUR_ID` to `.env`
 
-Note: LinkedIn tokens expire every 60 days.
+Note: Some personal profile endpoints may require user-delegated OAuth. If metrics fail, consider using the 3-legged OAuth flow with `LINKEDIN_ACCESS_TOKEN` and `LINKEDIN_PERSON_URN` instead.
 
 ---
 
-## Deploying online (optional)
+## Deploying to Vercel
 
-To access this from anywhere (not just your laptop):
+1. Push this folder to GitHub (ensure `.env` is in `.gitignore` — it already is)
+2. Go to https://vercel.com and import your GitHub repo
+3. Add these environment variables in the Vercel project settings:
+   - `TWITTER_BEARER_TOKEN`
+   - `TWITTER_USER_ID`
+   - `LINKEDIN_CLIENTID`
+   - `LINKEDIN_SECRET`
+   - `LINKEDIN_PERSON_URN`
+4. Deploy — Vercel will build and serve the dashboard and API routes
 
-1. Push this folder to GitHub (make sure `.env` is in `.gitignore` — it already is)
-2. Deploy to Railway.app (free tier):
-   - Connect your GitHub repo
-   - Add your environment variables in Railway's dashboard
-   - It gives you a public URL
+**Local preview with Vercel:**
+```
+npx vercel dev
+```
 
 Never put your `.env` file on GitHub.

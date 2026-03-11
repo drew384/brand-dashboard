@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Brand Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="dashboard">
+    <header class="header">
+      <h1>Brand Dashboard</h1>
+      <p class="subtitle">Personal brand analytics</p>
+    </header>
+
+    <section class="cards">
+      <article class="card card--twitter">
+        <div class="card__header">
+          <span class="card__icon" aria-hidden="true">𝕏</span>
+          <h2>Twitter / X</h2>
+        </div>
+        <div class="card__body" data-twitter>
+          <div class="loading" data-twitter-loading>Loading…</div>
+          <div class="error hidden" data-twitter-error></div>
+          <div class="metrics hidden" data-twitter-metrics>
+            <div class="metric">
+              <span class="metric__value" data-twitter-followers>—</span>
+              <span class="metric__label">Followers</span>
+            </div>
+            <div class="metric">
+              <span class="metric__value" data-twitter-following>—</span>
+              <span class="metric__label">Following</span>
+            </div>
+            <div class="metric">
+              <span class="metric__value" data-twitter-tweets>—</span>
+              <span class="metric__label">Tweets</span>
+            </div>
+            <div class="metric">
+              <span class="metric__value" data-twitter-impressions>—</span>
+              <span class="metric__label">Impressions (7d)</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card card--linkedin">
+        <div class="card__header">
+          <span class="card__icon card__icon--linkedin" aria-hidden="true">in</span>
+          <h2>LinkedIn</h2>
+        </div>
+        <div class="card__body" data-linkedin>
+          <div class="loading" data-linkedin-loading>Loading…</div>
+          <div class="error hidden" data-linkedin-error></div>
+          <div class="metrics hidden" data-linkedin-metrics>
+            <div class="metric">
+              <span class="metric__value" data-linkedin-followers>—</span>
+              <span class="metric__label">Connections</span>
+            </div>
+            <div class="metric">
+              <span class="metric__value" data-linkedin-impressions>—</span>
+              <span class="metric__label">Impressions (30d)</span>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

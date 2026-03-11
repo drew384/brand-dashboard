@@ -19,7 +19,7 @@ export default async function handler(req, res) {
       return res.status(userRes.status).json({ error: userData });
     }
 
-    const followers = userData.data?.public_metrics?.followers_count ?? null;
+    const metrics = userData.data?.public_metrics || {};
 
     const endTime = new Date().toISOString();
     const startTime = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -30,14 +30,15 @@ export default async function handler(req, res) {
     );
     const tweetsData = await tweetsRes.json();
 
-    const totalImpressions = tweetsData.data
+    const impressions = tweetsData.data
       ? tweetsData.data.reduce((sum, t) => sum + (t.public_metrics?.impression_count ?? 0), 0)
-      : null;
+      : 0;
 
     return res.status(200).json({
-      platform: "twitter",
-      followers,
-      impressions_7d: totalImpressions,
+      followers: metrics.followers_count ?? 0,
+      following: metrics.following_count ?? 0,
+      tweets: metrics.tweet_count ?? 0,
+      impressions_7d: impressions,
     });
 
   } catch (err) {
