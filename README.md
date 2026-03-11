@@ -1,100 +1,78 @@
-# Brand Dashboard — Backend API
+# Brand Dashboard
 
-A simple Vercel serverless proxy that securely connects your personal brand dashboard to Twitter/X and LinkedIn.
+A Node.js web app that securely pulls your Twitter/X and LinkedIn metrics and displays them in a clean dashboard.
 
 ---
 
-## Deploy to Vercel (15 min setup)
+## Setup (5 minutes)
 
-### 1. Install Vercel CLI
-```bash
-npm install -g vercel
+### 1. Install Node.js
+Download from https://nodejs.org — grab the LTS version and install it.
+
+### 2. Install dependencies
+Open Terminal (Mac) or Command Prompt (Windows), navigate to this folder, and run:
+```
+npm install
 ```
 
-### 2. Clone & deploy
-```bash
-cd brand-dashboard
-vercel
+### 3. Add your API credentials
+- Rename `.env.example` to `.env`
+- Open `.env` in any text editor and fill in your credentials:
+
 ```
-Follow the prompts. Vercel will give you a deployment URL like `https://brand-dashboard-xxx.vercel.app`.
-
----
-
-## Environment Variables
-
-In your Vercel dashboard → Project Settings → Environment Variables, add:
-
-### Twitter/X
-| Variable | Value |
-|---|---|
-| `TWITTER_BEARER_TOKEN` | Your Bearer Token from developer.x.com |
-| `TWITTER_USER_ID` | Your numeric Twitter user ID |
-
-**To find your Twitter User ID:**
-Go to `https://api.twitter.com/2/users/by/username/YOUR_USERNAME` in your browser with your Bearer Token, or use [tweeterid.com](https://tweeterid.com).
-
-### LinkedIn
-| Variable | Value |
-|---|---|
-| `LINKEDIN_ACCESS_TOKEN` | OAuth 2.0 access token (see below) |
-| `LINKEDIN_PERSON_URN` | Your LinkedIn URN e.g. `urn:li:person:abc123` |
-
-**To get your LinkedIn Access Token:**
-
-LinkedIn requires a full OAuth 2.0 flow. Steps:
-1. Go to [linkedin.com/developers](https://linkedin.com/developers) → your app
-2. Under Auth, add `https://brand-dashboard-xxx.vercel.app/api/linkedin-callback` as a redirect URL
-3. Use this URL to authorize (replace CLIENT_ID):
-   ```
-   https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=CLIENT_ID&redirect_uri=YOUR_REDIRECT&scope=r_liteprofile%20r_emailaddress%20w_member_social%20r_organization_social
-   ```
-4. After authorizing, LinkedIn redirects you with a `code` param
-5. Exchange the code for a token:
-   ```bash
-   curl -X POST https://www.linkedin.com/oauth/v2/accessToken \
-     -d grant_type=authorization_code \
-     -d code=YOUR_CODE \
-     -d redirect_uri=YOUR_REDIRECT \
-     -d client_id=YOUR_CLIENT_ID \
-     -d client_secret=YOUR_CLIENT_SECRET
-   ```
-6. Copy the `access_token` from the response → paste into Vercel env vars
-
-**Note:** LinkedIn access tokens expire every 60 days. You'll need to refresh using the `refresh_token` returned in step 6.
-
----
-
-## API Endpoints
-
-Once deployed:
-
-- `GET /api/twitter` → returns `{ followers, impressions_7d }`
-- `GET /api/linkedin` → returns `{ followers, impressions_30d }`
-
----
-
-## Connect to your Dashboard
-
-In `brand-dashboard.jsx`, replace the mock data fetch with:
-
-```js
-const API_BASE = "https://your-vercel-url.vercel.app";
-
-const [twitterData, setTwitterData] = useState(null);
-const [linkedinData, setLinkedinData] = useState(null);
-
-useEffect(() => {
-  fetch(`${API_BASE}/api/twitter`).then(r => r.json()).then(setTwitterData);
-  fetch(`${API_BASE}/api/linkedin`).then(r => r.json()).then(setLinkedinData);
-}, []);
+TWITTER_BEARER_TOKEN=your_token_here
+TWITTER_USER_ID=your_numeric_id_here
+LINKEDIN_ACCESS_TOKEN=your_token_here
+LINKEDIN_PERSON_URN=urn:li:person:your_id_here
 ```
 
----
+**Finding your Twitter User ID:** Go to https://tweeterid.com and enter your username.
 
-## Local Development
+**LinkedIn Access Token:** See LinkedIn OAuth setup below.
 
-```bash
-vercel dev
+### 4. Run the app
+```
+npm start
 ```
 
-Create a `.env.local` file with your env vars for local testing. Never commit this file.
+Then open your browser and go to: **http://localhost:3000**
+
+---
+
+## LinkedIn OAuth Setup
+
+LinkedIn requires a one-time OAuth flow to get your access token:
+
+1. Go to https://linkedin.com/developers → your app → Auth tab
+2. Add `http://localhost:3000` as a redirect URL
+3. Open this URL in your browser (replace YOUR_CLIENT_ID):
+```
+https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=YOUR_CLIENT_ID&redirect_uri=http://localhost:3000&scope=r_liteprofile%20r_emailaddress%20w_member_social
+```
+4. Authorize the app — LinkedIn redirects you back with a `?code=` in the URL
+5. Copy that code and run this in Terminal (replace the placeholders):
+```
+curl -X POST https://www.linkedin.com/oauth/v2/accessToken \
+  -d "grant_type=authorization_code" \
+  -d "code=YOUR_CODE" \
+  -d "redirect_uri=http://localhost:3000" \
+  -d "client_id=YOUR_CLIENT_ID" \
+  -d "client_secret=YOUR_CLIENT_SECRET"
+```
+6. Copy the `access_token` from the response → paste into your `.env`
+
+Note: LinkedIn tokens expire every 60 days.
+
+---
+
+## Deploying online (optional)
+
+To access this from anywhere (not just your laptop):
+
+1. Push this folder to GitHub (make sure `.env` is in `.gitignore` — it already is)
+2. Deploy to Railway.app (free tier):
+   - Connect your GitHub repo
+   - Add your environment variables in Railway's dashboard
+   - It gives you a public URL
+
+Never put your `.env` file on GitHub.
