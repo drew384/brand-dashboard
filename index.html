@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Drew Oetting — Brand Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Playfair+Display:wght@400;600&family=DM+Mono&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #fafaf8;
+      color: #111;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #fff;
+      border-bottom: 1px solid #efefed;
+      padding: 20px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+    }
+
+    header p {
+      font-size: 13px;
+      color: #aaa;
+      margin-top: 2px;
+    }
+
+    header .date {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: #bbb;
+    }
+
+    main {
+      padding: 36px 40px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 28px;
+    }
+
+    .toggle-group {
+      display: flex;
+      gap: 4px;
+      background: #f2f2f0;
+      border-radius: 24px;
+      padding: 4px;
+    }
+
+    .toggle-group button {
+      cursor: pointer;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+      border: none;
+      background: none;
+      font-family: 'DM Sans', sans-serif;
+      color: #888;
+      transition: all 0.15s;
+    }
+
+    .toggle-group button.active {
+      background: #111;
+      color: #fff;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid #efefed;
+      border-radius: 14px;
+      padding: 24px 28px;
+      transition: box-shadow 0.2s;
+    }
+
+    .card:hover { box-shadow: 0 6px 24px rgba(0,0,0,0.06); }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .card-label {
+      font-size: 11px;
+      color: #aaa;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .card-value {
+      font-family: 'Playfair Display', serif;
+      font-size: 38px;
+      font-weight: 600;
+      letter-spacing: -1px;
+      color: #111;
+    }
+
+    .card-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 20px;
+      font-weight: 500;
+    }
+
+    .pill.up { background: #f0faf4; color: #16a34a; }
+    .pill.down { background: #fff5f5; color: #dc2626; }
+
+    .card-footer {
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #bbb;
+    }
+
+    .chart-card {
+      background: #fff;
+      border: 1px solid #efefed;
+      border-radius: 14px;
+      padding: 28px;
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .chart-title {
+      font-size: 11px;
+      color: #aaa;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .legend {
+      display: flex;
+      gap: 18px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: #aaa;
+    }
+
+    .legend span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-line {
+      width: 20px;
+      height: 2px;
+      border-radius: 2px;
+      display: inline-block;
+    }
+
+    .footer-note {
+      margin-top: 20px;
+      text-align: center;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: #ccc;
+    }
+
+    canvas { max-height: 220px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Drew Oetting</h1>
+    <p>Personal Brand Dashboard</p>
+  </div>
+  <div class="date" id="today"></div>
+</header>
+
+<main>
+  <div class="controls">
+    <div class="toggle-group" id="metricToggle">
+      <button class="active" data-metric="followers">Followers</button>
+      <button data-metric="impressions">Impressions</button>
+    </div>
+    <div class="toggle-group" id="rangeToggle">
+      <button data-range="7d">7d</button>
+      <button class="active" data-range="30d">30d</button>
+      <button data-range="90d">90d</button>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-label" id="twitterLabel">Twitter / X · followers</div>
+          <div class="card-value" id="twitterValue">—</div>
+        </div>
+        <div class="card-icon" style="background:#000">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.261 5.636 5.903-5.636zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        </div>
+      </div>
+      <div class="card-footer">
+        <span class="pill up" id="twitterDelta">—</span>
+        <span>vs. start of period</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-label" id="linkedinLabel">LinkedIn · followers</div>
+          <div class="card-value" id="linkedinValue">—</div>
+        </div>
+        <div class="card-icon" style="background:#0A66C2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+        </div>
+      </div>
+      <div class="card-footer">
+        <span class="pill up" id="linkedinDelta">—</span>
+        <span>vs. start of period</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title" id="chartTitle">followers over time</div>
+      <div class="legend">
+        <span><span class="legend-line" style="background:#111"></span> Twitter</span>
+        <span><span class="legend-line" style="background:#0A66C2"></span> LinkedIn</span>
+      </div>
+    </div>
+    <canvas id="chart"></canvas>
+  </div>
+
+  <div class="footer-note">Sample data — connect your API to pull live metrics</div>
+</main>
+
+<script>
+  // --- Data ---
+  const data = {
+    followers: {
+      "7d":  { labels: ["Mar 5","Mar 6","Mar 7","Mar 8","Mar 9","Mar 10","Mar 11"], twitter: [12400,12480,12550,12610,12700,12780,12900], linkedin: [8100,8150,8200,8310,8400,8490,8600] },
+      "30d": { labels: ["Feb 10","Feb 17","Feb 24","Mar 3","Mar 11"], twitter: [11200,11600,12100,12600,12900], linkedin: [7200,7500,7900,8300,8600] },
+      "90d": { labels: ["Dec 11","Jan 1","Jan 21","Feb 10","Mar 1","Mar 11"], twitter: [9800,10400,11000,11600,12400,12900], linkedin: [5900,6400,7000,7500,8200,8600] },
+    },
+    impressions: {
+      "7d":  { labels: ["Mar 5","Mar 6","Mar 7","Mar 8","Mar 9","Mar 10","Mar 11"], twitter: [42000,38000,55000,61000,49000,72000,58000], linkedin: [18000,21000,19000,24000,28000,31000,26000] },
+      "30d": { labels: ["Feb 10","Feb 17","Feb 24","Mar 3","Mar 11"], twitter: [310000,290000,420000,380000,375000], linkedin: [98000,112000,130000,145000,158000] },
+      "90d": { labels: ["Dec 11","Jan 1","Jan 21","Feb 10","Mar 1","Mar 11"], twitter: [820000,910000,1050000,980000,1100000,1150000], linkedin: [290000,320000,370000,410000,460000,490000] },
+    }
+  };
+
+  let metric = "followers";
+  let range = "30d";
+  let chart;
+
+  const fmt = n => n >= 1000000 ? (n/1000000).toFixed(1)+"M" : n >= 1000 ? (n/1000).toFixed(1)+"K" : n;
+
+  function pct(arr) {
+    const d = (((arr[arr.length-1] - arr[0]) / arr[0]) * 100).toFixed(1);
+    return d;
+  }
+
+  function render() {
+    const d = data[metric][range];
+
+    document.getElementById("twitterLabel").textContent = `Twitter / X · ${metric}`;
+    document.getElementById("linkedinLabel").textContent = `LinkedIn · ${metric}`;
+    document.getElementById("chartTitle").textContent = `${metric} over time`;
+
+    document.getElementById("twitterValue").textContent = fmt(d.twitter[d.twitter.length-1]);
+    document.getElementById("linkedinValue").textContent = fmt(d.linkedin[d.linkedin.length-1]);
+
+    const td = pct(d.twitter);
+    const ld = pct(d.linkedin);
+
+    const tp = document.getElementById("twitterDelta");
+    tp.textContent = `${td >= 0 ? "↑" : "↓"} ${Math.abs(td)}%`;
+    tp.className = `pill ${td >= 0 ? "up" : "down"}`;
+
+    const lp = document.getElementById("linkedinDelta");
+    lp.textContent = `${ld >= 0 ? "↑" : "↓"} ${Math.abs(ld)}%`;
+    lp.className = `pill ${ld >= 0 ? "up" : "down"}`;
+
+    if (chart) chart.destroy();
+    const ctx = document.getElementById("chart").getContext("2d");
+    chart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: d.labels,
+        datasets: [
+          {
+            label: "Twitter",
+            data: d.twitter,
+            borderColor: "#111",
+            backgroundColor: "rgba(17,17,17,0.05)",
+            borderWidth: 2,
+            pointRadius: 0,
+            pointHoverRadius: 4,
+            fill: true,
+            tension: 0.4,
+          },
+          {
+            label: "LinkedIn",
+            data: d.linkedin,
+            borderColor: "#0A66C2",
+            backgroundColor: "rgba(10,102,194,0.05)",
+            borderWidth: 2,
+            pointRadius: 0,
+            pointHoverRadius: 4,
+            fill: true,
+            tension: 0.4,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: "#fff",
+            borderColor: "#e8e8e8",
+            borderWidth: 1,
+            titleColor: "#999",
+            bodyColor: "#111",
+            padding: 12,
+            callbacks: { label: ctx => `${ctx.dataset.label}: ${fmt(ctx.parsed.y)}` }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: "#bbb", font: { family: "DM Mono", size: 11 } } },
+          y: { grid: { color: "#f5f5f3" }, ticks: { color: "#bbb", font: { family: "DM Mono", size: 11 }, callback: fmt } }
+        }
+      }
+    });
+  }
+
+  // Toggles
+  document.getElementById("metricToggle").addEventListener("click", e => {
+    if (!e.target.dataset.metric) return;
+    metric = e.target.dataset.metric;
+    document.querySelectorAll("#metricToggle button").forEach(b => b.classList.toggle("active", b === e.target));
+    render();
+  });
+
+  document.getElementById("rangeToggle").addEventListener("click", e => {
+    if (!e.target.dataset.range) return;
+    range = e.target.dataset.range;
+    document.querySelectorAll("#rangeToggle button").forEach(b => b.classList.toggle("active", b === e.target));
+    render();
+  });
+
+  // Date
+  document.getElementById("today").textContent = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+
+  render();
+</script>
+</body>
+</html>
