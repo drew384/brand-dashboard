@@ -30,12 +30,44 @@ async function getLinkedInToken() {
 export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
 
+  const accessToken = process.env.LINKEDIN_ACCESS_TOKEN;
   const personUrn = process.env.LINKEDIN_PERSON_URN;
 
-  try {
-    const token = await getLinkedInToken();
+  let token;
+  let resolvedUrn;
 
-    // Try /v2/me first; with client credentials it may not return profile
+  try {
+    if (accessToken && personUrn) {
+      token = accessToken;
+      resolvedUrn = personUrn;
+    } else if (process.env.LINKEDIN_CLIENTID && process.env.LINKEDIN_SECRET) {
+      try {
+        token = await getLinkedInToken();
+        resolvedUrn = personUrn;
+      } catch (err) {
+        const msg = err.message || "";
+        if (msg.includes("not allowed to create application tokens") || msg.includes("access_denied")) {
+          return res.status(500).json({
+            error:
+              "LinkedIn client credentials are restricted. Use 3-legged OAuth instead: set LINKEDIN_ACCESS_TOKEN and LINKEDIN_PERSON_URN in .env. See README for the OAuth flow.",
+          });
+        }
+        throw err;
+      }
+    } else {
+      return res.status(500).json({
+        error:
+          "LinkedIn auth required. Use 3-legged OAuth: set LINKEDIN_ACCESS_TOKEN and LINKEDIN_PERSON_URN. See README for setup.",
+      });
+    }
+
+    if (!resolvedUrn) {
+      return res.status(500).json({
+        error: "Missing LINKEDIN_PERSON_URN. Add it to .env (e.g. urn:li:person:ABC123).",
+      });
+    }
+
+    // Fetch profile for name (works with 3-legged token; may not work with client credentials)
     const profileRes = await fetch(
       "https://api.linkedin.com/v2/me?projection=(id,localizedFirstName,localizedLastName)",
       {
@@ -46,16 +78,6 @@ export default async function handler(req, res) {
       }
     );
     const profileData = profileRes.ok ? await profileRes.json() : null;
-
-    const resolvedUrn =
-      personUrn || (profileData?.id ? `urn:li:person:${profileData.id}` : null);
-
-    if (!resolvedUrn) {
-      return res.status(500).json({
-        error:
-          "Missing LINKEDIN_PERSON_URN. Add it to env (e.g. urn:li:person:ABC123) when using client credentials.",
-      });
-    }
 
     const encodedUrn = encodeURIComponent(resolvedUrn);
 

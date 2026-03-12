@@ -5,12 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Brand Dashboard</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
 </head>
-<body>
+<body data-theme="dark">
   <main class="dashboard">
     <header class="header">
-      <h1>Brand Dashboard</h1>
-      <p class="subtitle">Personal brand analytics</p>
+      <div class="header__top">
+        <div>
+          <h1>Brand Dashboard</h1>
+          <p class="subtitle">Personal brand analytics</p>
+        </div>
+        <div class="header__controls">
+          <label for="date-range-input" class="visually-hidden">Date range</label>
+          <input id="date-range-input" type="text" class="date-range-input" placeholder="Select date range" readonly aria-label="Chart date range">
+          <button type="button" class="theme-toggle" aria-label="Toggle theme" title="Toggle light/dark mode">
+            <span class="theme-toggle__icon theme-toggle__icon--sun" aria-hidden="true">☀</span>
+            <span class="theme-toggle__icon theme-toggle__icon--moon" aria-hidden="true">☽</span>
+          </button>
+        </div>
+      </div>
     </header>
 
     <section class="cards">
@@ -64,7 +78,22 @@
         </div>
       </article>
     </section>
+
+    <section class="chart-section">
+      <div class="chart-section__header">
+        <div>
+          <h2 class="chart-section__title">Impressions over time</h2>
+          <p class="chart-section__hint">Real daily data from Twitter and LinkedIn. Twitter: impressions from tweets posted each day.</p>
+        </div>
+        <div class="chart-section__total" data-chart-total>—</div>
+      </div>
+      <div class="chart-wrapper">
+        <canvas id="impressionsChart" aria-label="Impressions line chart"></canvas>
+      </div>
+    </section>
   </main>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="app.js"></script>
 </body>
 </html>

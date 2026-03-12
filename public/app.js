@@ -1,4 +1,6 @@
 (function () {
+  const RANGE_STORAGE_KEY = "brand-dashboard-date-range";
+
   const formatNum = (n) => {
     if (n === null || n === undefined) return "—";
     if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
@@ -52,16 +54,32 @@
     document.querySelector("[data-linkedin-metrics]").classList.remove("hidden");
   }
 
+  function parseError(data) {
+    if (typeof data === "string") return data;
+    if (data?.error?.title === "CreditsDepleted") return "Twitter API credits depleted. Add credits in X Developer Console or wait for monthly reset.";
+    if (data?.error?.detail) return data.error.detail;
+    if (data?.error?.message) return data.error.message;
+    if (data?.error?.error_description) return data.error.error_description;
+    if (data?.error?.errors?.[0]?.message) return data.error.errors[0].message;
+    if (data?.error) return typeof data.error === "string" ? data.error : (data.error?.errors?.[0]?.message || "Request failed");
+    if (data?.errors?.[0]?.message) return data.errors[0].message;
+    return null;
+  }
+
   async function fetchTwitter() {
     showTwitterLoading();
     try {
       const res = await fetch("/api/twitter");
       const data = await res.json();
       if (!res.ok) {
-        showTwitterError(data.error?.message || data.error || "Failed to load Twitter data");
+        showTwitterError(parseError(data) || "Failed to load Twitter data");
         return;
       }
-      showTwitterData(data);
+      if (data.followers !== undefined || data.following !== undefined || data.tweets !== undefined) {
+        showTwitterData(data);
+      } else {
+        showTwitterError(parseError(data) || "Invalid Twitter response");
+      }
     } catch (err) {
       showTwitterError(err.message || "Network error");
     }
@@ -73,13 +91,200 @@
       const res = await fetch("/api/linkedin");
       const data = await res.json();
       if (!res.ok) {
-        showLinkedInError(data.error?.message || data.error || "Failed to load LinkedIn data");
+        const msg = parseError(data) || "Failed to load LinkedIn data";
+        showLinkedInError(msg.length > 120 ? msg.slice(0, 120) + "…" : msg);
         return;
       }
       showLinkedInData(data);
     } catch (err) {
       showLinkedInError(err.message || "Network error");
     }
+  }
+
+  function getChartColors() {
+    const isDark = document.body.getAttribute("data-theme") === "dark";
+    return {
+      twitter: "#1d9bf0",
+      linkedin: "#f59e0b",
+      grid: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+      text: isDark ? "#8b8b96" : "#6b6b76",
+    };
+  }
+
+  let chartInstance = null;
+
+  function renderChart(apiData) {
+    const canvas = document.getElementById("impressionsChart");
+    if (!canvas) return;
+
+    const totalEl = document.querySelector("[data-chart-total]");
+    if (totalEl) {
+      const twTotal = apiData?.twitter?.total ?? 0;
+      const liTotal = apiData?.linkedin?.total ?? 0;
+      const total = twTotal + liTotal;
+      totalEl.textContent = total > 0 ? `${formatNum(total)} total impressions` : "—";
+    }
+
+    const tw = apiData?.twitter?.daily || [];
+    const li = apiData?.linkedin?.daily || [];
+    const labels = tw.length > 0 ? tw.map((p) => {
+      const d = new Date(p.date);
+      return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    }) : li.map((p) => {
+      const d = new Date(p.date);
+      return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    });
+    const twitterData = tw.length > 0 ? tw.map((p) => p.impressions) : labels.map(() => null);
+    const linkedinData = li.length > 0 ? li.map((p) => p.impressions) : labels.map(() => null);
+
+    const colors = getChartColors();
+
+    if (chartInstance) chartInstance.destroy();
+
+    chartInstance = new Chart(canvas, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Twitter",
+            data: twitterData,
+            borderColor: colors.twitter,
+            backgroundColor: colors.twitter + "20",
+            fill: true,
+            tension: 0.35,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+          },
+          {
+            label: "LinkedIn",
+            data: linkedinData,
+            borderColor: colors.linkedin,
+            backgroundColor: colors.linkedin + "20",
+            fill: true,
+            tension: 0.35,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { intersect: false, mode: "index" },
+        plugins: {
+          legend: {
+            position: "top",
+            labels: { color: colors.text, usePointStyle: true },
+          },
+        },
+        scales: {
+          x: {
+            grid: { color: colors.grid },
+            ticks: { color: colors.text, maxRotation: 0 },
+          },
+          y: {
+            grid: { color: colors.grid },
+            ticks: { color: colors.text },
+            beginAtZero: true,
+          },
+        },
+      },
+    });
+  }
+
+  async function fetchChartData(rangeOrStart, endParam) {
+    try {
+      const params = endParam
+        ? `start=${encodeURIComponent(rangeOrStart)}&end=${encodeURIComponent(endParam)}`
+        : `range=${rangeOrStart}`;
+      const res = await fetch(`/api/chart?${params}`);
+      const data = await res.json();
+      if (!res.ok) {
+        renderChart({ twitter: { daily: [] }, linkedin: { daily: [] } });
+        return;
+      }
+      renderChart(data);
+    } catch (err) {
+      renderChart({ twitter: { daily: [] }, linkedin: { daily: [] } });
+    }
+  }
+
+  let flatpickrInstance = null;
+
+  document.querySelector(".theme-toggle")?.addEventListener("click", () => {
+    const body = document.body;
+    const next = body.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    body.setAttribute("data-theme", next);
+    localStorage.setItem("brand-dashboard-theme", next);
+    if (flatpickrInstance) {
+      flatpickrInstance.config.theme = next === "dark" ? "dark" : "light";
+    }
+    const saved = localStorage.getItem(RANGE_STORAGE_KEY);
+    if (saved) {
+      try {
+        const { start, end } = JSON.parse(saved);
+        if (start && end) {
+          fetchChartData(start, end);
+          return;
+        }
+      } catch (_) {}
+    }
+    fetchChartData("14");
+  });
+
+  const savedTheme = localStorage.getItem("brand-dashboard-theme");
+  if (savedTheme) document.body.setAttribute("data-theme", savedTheme);
+
+  const rangeInput = document.getElementById("date-range-input");
+  if (rangeInput && typeof flatpickr !== "undefined") {
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    const minDate = new Date(today);
+    minDate.setFullYear(minDate.getFullYear() - 1);
+    const defaultEnd = new Date(today);
+    const defaultStart = new Date(today);
+    defaultStart.setDate(defaultStart.getDate() - 13);
+    defaultStart.setHours(0, 0, 0, 0);
+
+    const savedRange = localStorage.getItem(RANGE_STORAGE_KEY);
+    let defaultDates = [defaultStart, defaultEnd];
+    let initialStart, initialEnd;
+    if (savedRange) {
+      try {
+        const { start, end } = JSON.parse(savedRange);
+        if (start && end) {
+          defaultDates = [start, end];
+          initialStart = start;
+          initialEnd = end;
+        }
+      } catch (_) {}
+    }
+
+    flatpickrInstance = flatpickr(rangeInput, {
+      mode: "range",
+      dateFormat: "Y-m-d",
+      minDate,
+      maxDate: today,
+      defaultDate: defaultDates,
+      theme: document.body.getAttribute("data-theme") === "dark" ? "dark" : "light",
+      onChange(selectedDates) {
+        if (selectedDates.length === 2) {
+          const start = selectedDates[0].toISOString().slice(0, 10);
+          const end = selectedDates[1].toISOString().slice(0, 10);
+          localStorage.setItem(RANGE_STORAGE_KEY, JSON.stringify({ start, end }));
+          fetchChartData(start, end);
+        }
+      },
+    });
+
+    if (initialStart && initialEnd) {
+      fetchChartData(initialStart, initialEnd);
+    } else {
+      fetchChartData("14");
+    }
+  } else {
+    fetchChartData("14");
   }
 
   fetchTwitter();

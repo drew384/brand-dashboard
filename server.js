@@ -90,22 +90,45 @@ async function getLinkedInToken() {
 
 // ─── LinkedIn API ──────────────────────────────────────────────────────────────
 app.get('/api/linkedin', async (req, res) => {
+  const accessToken = process.env.LINKEDIN_ACCESS_TOKEN;
+  const personUrnEnv = process.env.LINKEDIN_PERSON_URN;
+
+  let token;
+  let personUrn;
+
   try {
-    const token = await getLinkedInToken();
+    if (accessToken && personUrnEnv) {
+      token = accessToken;
+      personUrn = personUrnEnv;
+    } else if (process.env.LINKEDIN_CLIENTID && process.env.LINKEDIN_SECRET) {
+      try {
+        token = await getLinkedInToken();
+        personUrn = personUrnEnv;
+      } catch (err) {
+        const msg = err.message || '';
+        if (msg.includes('not allowed to create application tokens') || msg.includes('access_denied')) {
+          return res.status(500).json({
+            error: 'LinkedIn client credentials are restricted. Use 3-legged OAuth: set LINKEDIN_ACCESS_TOKEN and LINKEDIN_PERSON_URN. See README.',
+          });
+        }
+        throw err;
+      }
+    } else {
+      return res.status(500).json({
+        error: 'LinkedIn auth required. Use 3-legged OAuth: set LINKEDIN_ACCESS_TOKEN and LINKEDIN_PERSON_URN. See README.',
+      });
+    }
 
-    // With client credentials, we can access organization/company APIs.
-    // For personal profile follower counts, LinkedIn requires user-delegated OAuth.
-    // Here we fetch what's available with app-level access and return profile info.
+    if (!personUrn) {
+      return res.status(500).json({ error: 'Missing LINKEDIN_PERSON_URN. Add it to .env (e.g. urn:li:person:ABC123).' });
+    }
 
-    // Fetch basic profile (app token scope)
+    // Fetch profile for name (works with 3-legged token)
     const profileRes = await fetch(
       'https://api.linkedin.com/v2/me?projection=(id,localizedFirstName,localizedLastName,profilePicture)',
       { headers: { Authorization: `Bearer ${token}`, 'LinkedIn-Version': '202304' } }
     );
     const profileData = profileRes.ok ? await profileRes.json() : null;
-
-    // Fetch connection count (requires r_network scope — available with client credentials on some apps)
-    const personUrn = profileData?.id ? `urn:li:person:${profileData.id}` : null;
     let followers = null;
 
     if (personUrn) {
@@ -137,12 +160,27 @@ app.get('/api/linkedin', async (req, res) => {
     return res.json({
       followers,
       impressions_30d: impressions,
-      name: profileData ? `${profileData.localizedFirstName} ${profileData.localizedLastName}` : null,
-      token_type: 'client_credentials',
+      name: profileData ? `${profileData.localizedFirstName || ''} ${profileData.localizedLastName || ''}`.trim() : null,
     });
 
   } catch (err) {
     return res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Chart API (daily data) ─────────────────────────────────────────────────────
+const { getChartData } = require('./lib/chart-data.js');
+app.get('/api/chart', async (req, res) => {
+  try {
+    const start = req.query?.start;
+    const end = req.query?.end;
+    const result =
+      start && end
+        ? await getChartData(start, end)
+        : await getChartData(req.query?.range || '14');
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

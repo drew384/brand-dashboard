@@ -22,8 +22,7 @@ npm install
 ```
 TWITTER_BEARER_TOKEN=your_token_here
 TWITTER_USER_ID=your_numeric_id_here
-LINKEDIN_CLIENTID=your_client_id_here
-LINKEDIN_SECRET=your_client_secret_here
+LINKEDIN_ACCESS_TOKEN=your_access_token_here
 LINKEDIN_PERSON_URN=urn:li:person:your_person_id_here
 ```
 
@@ -40,18 +39,50 @@ Then open your browser and go to: **http://localhost:3000**
 
 ---
 
-## LinkedIn Setup (Client Credentials)
+## LinkedIn Setup (3-legged OAuth — recommended)
 
-This app uses LinkedIn's client credentials flow — no manual OAuth or token refresh needed.
+LinkedIn restricts the client credentials flow by default. Most apps must use 3-legged OAuth instead. You authorize once, get an access token, and add it to `.env`. The token expires in ~60 days; re-run the flow when it expires.
 
-1. Go to https://linkedin.com/developers and create an app (or use an existing one)
-2. In your app → **Auth** tab, copy the **Client ID** and **Client Secret** into `.env` as `LINKEDIN_CLIENTID` and `LINKEDIN_SECRET`
-3. Get your **Person URN** (e.g. `urn:li:person:ABC123`):
-   - Option A: Use the LinkedIn API to fetch your profile and read the `id` from the response
-   - Option B: Your URN is often your numeric LinkedIn member ID — you can find it via third‑party tools or your profile URL
-4. Add `LINKEDIN_PERSON_URN=urn:li:person:YOUR_ID` to `.env`
+### Step 1: Add redirect URL
+1. Go to https://linkedin.com/developers → your app → **Auth** tab
+2. Add `http://localhost:3000` as an authorized redirect URL
 
-Note: Some personal profile endpoints may require user-delegated OAuth. If metrics fail, consider using the 3-legged OAuth flow with `LINKEDIN_ACCESS_TOKEN` and `LINKEDIN_PERSON_URN` instead.
+### Step 2: Authorize and get a code
+Open this URL in your browser (replace `YOUR_CLIENT_ID` with your app's Client ID from the Auth tab):
+
+```
+https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=YOUR_CLIENT_ID&redirect_uri=http://localhost:3000&scope=r_liteprofile%20r_emailaddress%20w_member_social%20r_member_postAnalytics
+```
+
+3. Authorize the app — LinkedIn redirects to `http://localhost:3000?code=...`
+4. Copy the `code` from the URL (the part after `code=`)
+
+### Step 3: Exchange code for access token
+Run this in Terminal (replace `YOUR_CODE`, `YOUR_CLIENT_ID`, `YOUR_CLIENT_SECRET`):
+
+```bash
+curl -X POST https://www.linkedin.com/oauth/v2/accessToken \
+  -d "grant_type=authorization_code" \
+  -d "code=YOUR_CODE" \
+  -d "redirect_uri=http://localhost:3000" \
+  -d "client_id=YOUR_CLIENT_ID" \
+  -d "client_secret=YOUR_CLIENT_SECRET"
+```
+
+5. Copy the `access_token` from the response → add to `.env` as `LINKEDIN_ACCESS_TOKEN`
+
+**Note:** The `r_member_postAnalytics` scope is required for the chart's daily impressions. Re-authorize if you added it after your first token.
+
+### Step 4: Get your Person URN
+Your Person URN is `urn:li:person:YOUR_ID`. To find your ID:
+- Call `GET https://api.linkedin.com/v2/me` with `Authorization: Bearer YOUR_ACCESS_TOKEN` — the `id` in the response is your ID
+- Or use third-party tools that look up LinkedIn member IDs
+
+Add to `.env`: `LINKEDIN_PERSON_URN=urn:li:person:YOUR_ID`
+
+---
+
+**Note:** Client credentials (LINKEDIN_CLIENTID + LINKEDIN_SECRET) require explicit approval from LinkedIn and are rarely granted for personal apps. Use 3-legged OAuth instead.
 
 ---
 
@@ -62,8 +93,7 @@ Note: Some personal profile endpoints may require user-delegated OAuth. If metri
 3. Add these environment variables in the Vercel project settings:
    - `TWITTER_BEARER_TOKEN`
    - `TWITTER_USER_ID`
-   - `LINKEDIN_CLIENTID`
-   - `LINKEDIN_SECRET`
+   - `LINKEDIN_ACCESS_TOKEN`
    - `LINKEDIN_PERSON_URN`
 4. Deploy — Vercel will build and serve the dashboard and API routes
 
