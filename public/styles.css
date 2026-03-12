@@ -275,6 +275,35 @@ body {
   flex-shrink: 0;
 }
 
+.chart-range-buttons {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.range-btn {
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.range-btn:hover {
+  background: var(--surface-hover);
+  border-color: var(--text-muted);
+  color: var(--text);
+}
+
+.range-btn.active {
+  background: var(--accent-twitter);
+  border-color: var(--accent-twitter);
+  color: #fff;
+}
+
 .chart-wrapper {
   position: relative;
   height: 220px;

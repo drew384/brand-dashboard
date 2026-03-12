@@ -112,6 +112,14 @@
   }
 
   let chartInstance = null;
+  let chartFetchController = null;
+
+  function toDateStr(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
 
   function renderChart(apiData) {
     const canvas = document.getElementById("impressionsChart");
@@ -142,7 +150,7 @@
     if (chartInstance) chartInstance.destroy();
 
     chartInstance = new Chart(canvas, {
-      type: "line",
+      type: "bar",
       data: {
         labels,
         datasets: [
@@ -150,21 +158,17 @@
             label: "Twitter",
             data: twitterData,
             borderColor: colors.twitter,
-            backgroundColor: colors.twitter + "20",
-            fill: true,
-            tension: 0.35,
-            pointRadius: 3,
-            pointHoverRadius: 5,
+            backgroundColor: colors.twitter + "80",
+            borderWidth: 1,
+            borderRadius: 4,
           },
           {
             label: "LinkedIn",
             data: linkedinData,
             borderColor: colors.linkedin,
-            backgroundColor: colors.linkedin + "20",
-            fill: true,
-            tension: 0.35,
-            pointRadius: 3,
-            pointHoverRadius: 5,
+            backgroundColor: colors.linkedin + "80",
+            borderWidth: 1,
+            borderRadius: 4,
           },
         ],
       },
@@ -193,19 +197,25 @@
     });
   }
 
-  async function fetchChartData(rangeOrStart, endParam) {
+  async function fetchChartData(startDate, endDate) {
+    if (chartFetchController) chartFetchController.abort();
+    chartFetchController = new AbortController();
+    const { signal } = chartFetchController;
+
     try {
-      const params = endParam
-        ? `start=${encodeURIComponent(rangeOrStart)}&end=${encodeURIComponent(endParam)}`
-        : `range=${rangeOrStart}`;
-      const res = await fetch(`/api/chart?${params}`);
+      const params = endDate
+        ? `start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`
+        : `range=${startDate}`;
+      const res = await fetch(`/api/chart?${params}`, { signal });
       const data = await res.json();
+      if (signal.aborted) return;
       if (!res.ok) {
         renderChart({ twitter: { daily: [] }, linkedin: { daily: [] } });
         return;
       }
       renderChart(data);
     } catch (err) {
+      if (err.name === "AbortError") return;
       renderChart({ twitter: { daily: [] }, linkedin: { daily: [] } });
     }
   }
@@ -270,9 +280,10 @@
       theme: document.body.getAttribute("data-theme") === "dark" ? "dark" : "light",
       onChange(selectedDates) {
         if (selectedDates.length === 2) {
-          const start = selectedDates[0].toISOString().slice(0, 10);
-          const end = selectedDates[1].toISOString().slice(0, 10);
+          const start = toDateStr(selectedDates[0]);
+          const end = toDateStr(selectedDates[1]);
           localStorage.setItem(RANGE_STORAGE_KEY, JSON.stringify({ start, end }));
+          updateActiveRangeBtn(null);
           fetchChartData(start, end);
         }
       },
@@ -286,6 +297,47 @@
   } else {
     fetchChartData("14");
   }
+
+  // ─── Quick-select range buttons ──────────────────────────────────────────────
+  function computeRange(key) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (key === "7d") {
+      const start = new Date(today);
+      start.setDate(start.getDate() - 6);
+      return { start: toDateStr(start), end: toDateStr(today) };
+    }
+    if (key === "last-month") {
+      const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const end = new Date(today.getFullYear(), today.getMonth(), 0);
+      return { start: toDateStr(start), end: toDateStr(end) };
+    }
+    if (key === "mtd") {
+      const start = new Date(today.getFullYear(), today.getMonth(), 1);
+      return { start: toDateStr(start), end: toDateStr(today) };
+    }
+    return null;
+  }
+
+  function updateActiveRangeBtn(activeKey) {
+    document.querySelectorAll(".range-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.range === activeKey);
+    });
+  }
+
+  document.querySelectorAll(".range-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const key = btn.dataset.range;
+      const range = computeRange(key);
+      if (!range) return;
+      updateActiveRangeBtn(key);
+      localStorage.setItem(RANGE_STORAGE_KEY, JSON.stringify(range));
+      if (flatpickrInstance) {
+        flatpickrInstance.setDate([range.start, range.end], false);
+      }
+      fetchChartData(range.start, range.end);
+    });
+  });
 
   fetchTwitter();
   fetchLinkedIn();
